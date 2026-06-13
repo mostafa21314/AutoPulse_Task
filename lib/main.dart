@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'screens/preview_screen.dart';
@@ -9,7 +10,9 @@ import 'widgets/app_header.dart';
 import 'widgets/buttons.dart';
 import 'widgets/floating_nav_bar.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
   runApp(const AutoPulseApp());
 }
 
@@ -79,12 +82,17 @@ class UploadScreen extends StatelessWidget {
 
   static const _allowedExtensions = ['jpg', 'jpeg', 'png', 'pdf', 'heic'];
 
-  void _openPreview(BuildContext context, String path) {
+  void _openPreview(
+    BuildContext context, {
+    required String name,
+    required Uint8List? bytes,
+  }) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => PreviewScreen(
-          filePath: path,
-          isPdf: path.toLowerCase().endsWith('.pdf'),
+          fileName: name,
+          bytes: bytes,
+          isPdf: name.toLowerCase().endsWith('.pdf'),
           onNavigateToTab: onNavigateToTab,
         ),
       ),
@@ -95,16 +103,19 @@ class UploadScreen extends StatelessWidget {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: _allowedExtensions,
+      withData: true, // load bytes so it works on web (where path is null)
     );
-    final path = result?.files.single.path;
-    if (path == null || !context.mounted) return;
-    _openPreview(context, path);
+    final file = result?.files.single;
+    if (file == null || !context.mounted) return;
+    _openPreview(context, name: file.name, bytes: file.bytes);
   }
 
   Future<void> _captureWithCamera(BuildContext context) async {
     final photo = await ImagePicker().pickImage(source: ImageSource.camera);
-    if (photo == null || !context.mounted) return;
-    _openPreview(context, photo.path);
+    if (photo == null) return;
+    final bytes = await photo.readAsBytes();
+    if (!context.mounted) return;
+    _openPreview(context, name: photo.name, bytes: bytes);
   }
 
   @override

@@ -1,27 +1,78 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../services/ocr_service.dart';
 import '../theme.dart';
 import '../widgets/app_header.dart';
 import '../widgets/buttons.dart';
 import '../widgets/floating_nav_bar.dart';
+import 'results_screen.dart';
 
 /// Shows the picked/captured record so the user can confirm it before
 /// running analysis.
 class PreviewScreen extends StatelessWidget {
-  final String filePath;
+  final String fileName;
+  final Uint8List? bytes;
   final bool isPdf;
   final ValueChanged<int> onNavigateToTab;
 
   const PreviewScreen({
     super.key,
-    required this.filePath,
+    required this.fileName,
+    required this.bytes,
     required this.isPdf,
     required this.onNavigateToTab,
   });
 
-  String get _fileName => filePath.split(RegExp(r'[\\/]')).last;
+  /// Best-guess MIME type from the file name, for the Gemini request.
+  String get _mimeType {
+    final name = fileName.toLowerCase();
+    if (name.endsWith('.pdf')) return 'application/pdf';
+    if (name.endsWith('.png')) return 'image/png';
+    if (name.endsWith('.heic')) return 'image/heic';
+    return 'image/jpeg';
+  }
+
+  /// Sends the file to Gemini, shows a loading overlay while it runs, then
+  /// opens the results screen (or surfaces an error).
+  Future<void> _analyze(BuildContext context) async {
+    final data = bytes;
+    if (data == null) return;
+
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Non-dismissible loading overlay.
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: AppColors.accent),
+      ),
+    );
+
+    try {
+      final record = await OcrService().analyze(data, mimeType: _mimeType);
+      navigator.pop(); // dismiss the loader
+      navigator.push(
+        MaterialPageRoute(
+          builder: (_) => ResultsScreen(
+            record: record,
+            onNavigateToTab: onNavigateToTab,
+          ),
+        ),
+      );
+    } catch (e) {
+      navigator.pop(); // dismiss the loader
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.surface,
+          content: Text('Couldn\'t analyze the record: $e'),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +126,7 @@ class PreviewScreen extends StatelessWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(24, 32, 24, 0),
-              child: _PreviewCard(filePath: filePath, isPdf: isPdf, fileName: _fileName),
+              child: _PreviewCard(bytes: bytes, isPdf: isPdf, fileName: fileName),
             ),
           ),
 
@@ -88,9 +139,7 @@ class PreviewScreen extends StatelessWidget {
                   PrimaryButton(
                     label: 'Analyze',
                     icon: Icons.auto_awesome_rounded,
-                    onTap: () {
-                      // TODO: send the record off for analysis
-                    },
+                    onTap: () => _analyze(context),
                   ),
                   const SizedBox(height: 12),
                   SecondaryButton(
@@ -121,12 +170,12 @@ class PreviewScreen extends StatelessWidget {
 }
 
 class _PreviewCard extends StatelessWidget {
-  final String filePath;
+  final Uint8List? bytes;
   final bool isPdf;
   final String fileName;
 
   const _PreviewCard({
-    required this.filePath,
+    required this.bytes,
     required this.isPdf,
     required this.fileName,
   });
@@ -147,24 +196,26 @@ class _PreviewCard extends StatelessWidget {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: isPdf ? _PdfPreview(fileName: fileName) : _ImagePreview(filePath: filePath),
+      child: isPdf ? _PdfPreview(fileName: fileName) : _ImagePreview(bytes: bytes),
     );
   }
 }
 
 class _ImagePreview extends StatelessWidget {
-  final String filePath;
-  const _ImagePreview({required this.filePath});
+  final Uint8List? bytes;
+  const _ImagePreview({required this.bytes});
 
   @override
   Widget build(BuildContext context) {
     return AspectRatio(
       aspectRatio: 4 / 5,
-      child: Image.file(
-        File(filePath),
-        fit: BoxFit.cover,
-        width: double.infinity,
-      ),
+      child: bytes == null
+          ? const ColoredBox(color: AppColors.surface)
+          : Image.memory(
+              bytes!,
+              fit: BoxFit.cover,
+              width: double.infinity,
+            ),
     );
   }
 }
