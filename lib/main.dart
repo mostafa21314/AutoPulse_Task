@@ -1,43 +1,17 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:ui';
+import 'package:image_picker/image_picker.dart';
+
+import 'screens/preview_screen.dart';
+import 'theme.dart';
+import 'widgets/app_header.dart';
+import 'widgets/buttons.dart';
+import 'widgets/floating_nav_bar.dart';
 
 void main() {
   runApp(const AutoPulseApp());
 }
-
-// ─── Brand tokens ─────────────────────────────────────────────────────────────
-class AppColors {
-  static const background    = Color(0xFF1C2532);
-  static const surface       = Color(0xFF243040);
-  static const surfaceDeep   = Color(0xFF1A2030);
-  static const accent        = Color(0xFF00C4CC);
-  static const accentDim     = Color(0x1A00C4CC);
-  static const textPrimary   = Color(0xFFFFFFFF);
-  static const textSecondary = Color(0xFF7A8FA6);
-  static const divider       = Color(0xFF00C4CC);
-  static const cardBorder    = Color(0xFF2E3D52);
-}
-
-class AppTextStyles {
-  static const headline = TextStyle(
-    fontSize: 32, fontWeight: FontWeight.w700,
-    color: AppColors.textPrimary, height: 1.2, letterSpacing: -0.5,
-  );
-  static const subheadline = TextStyle(
-    fontSize: 16, fontWeight: FontWeight.w400,
-    color: AppColors.textSecondary, height: 1.6,
-  );
-  static const buttonLabel = TextStyle(
-    fontSize: 15, fontWeight: FontWeight.w600,
-    color: AppColors.textPrimary, letterSpacing: 0.3,
-  );
-  static const caption = TextStyle(
-    fontSize: 12, fontWeight: FontWeight.w400,
-    color: AppColors.textSecondary, letterSpacing: 0.2,
-  );
-}
-// ──────────────────────────────────────────────────────────────────────────────
 
 class AutoPulseApp extends StatelessWidget {
   const AutoPulseApp({super.key});
@@ -75,126 +49,63 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
 
-  static const _screens = [
-    UploadScreen(),
-    UploadScreen(), // placeholder — will be replaced with analytics screen
-    UploadScreen(), // placeholder — will be replaced with home screen
-  ];
+  void _onNavigateToTab(int index) => setState(() => _selectedIndex = index);
 
   @override
   Widget build(BuildContext context) {
+    final screens = [
+      UploadScreen(onNavigateToTab: _onNavigateToTab), // placeholder — will be replaced with home screen
+      UploadScreen(onNavigateToTab: _onNavigateToTab),
+      UploadScreen(onNavigateToTab: _onNavigateToTab), // placeholder — will be replaced with analytics screen
+    ];
+
     return Scaffold(
       backgroundColor: AppColors.background,
       extendBody: true, // lets content go behind the floating nav bar
-      body: _screens[_selectedIndex],
-      bottomNavigationBar: _FloatingNavBar(
+      body: screens[_selectedIndex],
+      bottomNavigationBar: FloatingNavBar(
         selectedIndex: _selectedIndex,
-        onTap: (i) => setState(() => _selectedIndex = i),
+        onTap: _onNavigateToTab,
       ),
     );
   }
-}
-
-// ─── Floating Nav Bar ─────────────────────────────────────────────────────────
-class _FloatingNavBar extends StatelessWidget {
-  final int selectedIndex;
-  final ValueChanged<int> onTap;
-
-  const _FloatingNavBar({
-    required this.selectedIndex,
-    required this.onTap,
-  });
-
-  static const _items = [
-    _NavItem(icon: Icons.home_rounded,         label: 'Home'),
-    _NavItem(icon: Icons.upload_file_rounded,  label: 'Upload'),
-    _NavItem(icon: Icons.bar_chart_rounded,    label: 'Analytics'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            height: 68,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceDeep.withOpacity(0.85),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: AppColors.cardBorder.withOpacity(0.6),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: List.generate(_items.length, (i) {
-                final selected = i == selectedIndex;
-                return GestureDetector(
-                  onTap: () => onTap(i),
-                  behavior: HitTestBehavior.opaque,
-                  child: SizedBox(
-                    width: 80,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Active indicator dot above icon
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          height: 3,
-                          width: selected ? 20 : 0,
-                          margin: const EdgeInsets.only(bottom: 6),
-                          decoration: BoxDecoration(
-                            color: AppColors.accent,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                        Icon(
-                          _items[i].icon,
-                          size: 22,
-                          color: selected
-                              ? AppColors.accent
-                              : AppColors.textSecondary,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _items[i].label,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: selected
-                                ? FontWeight.w600
-                                : FontWeight.w400,
-                            color: selected
-                                ? AppColors.accent
-                                : AppColors.textSecondary,
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem {
-  final IconData icon;
-  final String label;
-  const _NavItem({required this.icon, required this.label});
 }
 
 // ─── Upload Screen ────────────────────────────────────────────────────────────
 class UploadScreen extends StatelessWidget {
-  const UploadScreen({super.key});
+  final ValueChanged<int> onNavigateToTab;
+
+  const UploadScreen({super.key, required this.onNavigateToTab});
+
+  static const _allowedExtensions = ['jpg', 'jpeg', 'png', 'pdf', 'heic'];
+
+  void _openPreview(BuildContext context, String path) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PreviewScreen(
+          filePath: path,
+          isPdf: path.toLowerCase().endsWith('.pdf'),
+          onNavigateToTab: onNavigateToTab,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickFile(BuildContext context) async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: _allowedExtensions,
+    );
+    final path = result?.files.single.path;
+    if (path == null || !context.mounted) return;
+    _openPreview(context, path);
+  }
+
+  Future<void> _captureWithCamera(BuildContext context) async {
+    final photo = await ImagePicker().pickImage(source: ImageSource.camera);
+    if (photo == null || !context.mounted) return;
+    _openPreview(context, photo.path);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -202,45 +113,7 @@ class UploadScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
-
-          // ── Header ────────────────────────────────────────────────────────
-          SliverAppBar(
-            pinned: true,
-            backgroundColor: AppColors.background,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            expandedHeight: 0,
-            toolbarHeight: 64,
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(1),
-              child: Container(height: 1, color: AppColors.divider),
-            ),
-            flexibleSpace: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Image.asset(
-                    'assets/logo.png',
-                    height: 36,
-                    errorBuilder: (_, __, ___) => const Text(
-                      'AUTOPULSE',
-                      style: TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w800,
-                        color: AppColors.accent, letterSpacing: 1.2,
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () {},
-                    child: const Icon(Icons.menu_rounded,
-                        color: AppColors.textPrimary, size: 26),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          const AppHeader(),
 
           // ── Hero ──────────────────────────────────────────────────────────
           SliverToBoxAdapter(
@@ -254,7 +127,7 @@ class UploadScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: AppColors.accentDim,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+                      border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
                     ),
                     child: const Text(
                       'Maintenance Records',
@@ -314,16 +187,16 @@ class UploadScreen extends StatelessWidget {
                     style: AppTextStyles.subheadline,
                   ),
                   const SizedBox(height: 32),
-                  _PrimaryButton(
+                  PrimaryButton(
                     label: 'Upload Record',
                     icon: Icons.upload_file_rounded,
-                    onTap: () {},
+                    onTap: () => _pickFile(context),
                   ),
                   const SizedBox(height: 12),
-                  _SecondaryButton(
+                  SecondaryButton(
                     label: 'Capture with Camera',
                     icon: Icons.camera_alt_rounded,
-                    onTap: () {},
+                    onTap: () => _captureWithCamera(context),
                   ),
                   const SizedBox(height: 40),
                   Row(
@@ -341,75 +214,6 @@ class UploadScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ─── Buttons ──────────────────────────────────────────────────────────────────
-class _PrimaryButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-  const _PrimaryButton({required this.label, required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        height: 56,
-        decoration: BoxDecoration(
-          color: AppColors.accent,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.accent.withOpacity(0.30),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            Text(label, style: AppTextStyles.buttonLabel),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SecondaryButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-  const _SecondaryButton({required this.label, required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        height: 56,
-        decoration: BoxDecoration(
-          color: AppColors.surfaceDeep,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.cardBorder, width: 1.5),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: AppColors.textPrimary, size: 20),
-            const SizedBox(width: 10),
-            Text(label, style: AppTextStyles.buttonLabel),
-          ],
-        ),
       ),
     );
   }

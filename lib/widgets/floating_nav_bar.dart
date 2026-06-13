@@ -35,7 +35,7 @@ class FloatingNavBar extends StatelessWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
-            height: 68,
+            height: 70,
             decoration: BoxDecoration(
               color: AppColors.surfaceDeep.withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(24),
