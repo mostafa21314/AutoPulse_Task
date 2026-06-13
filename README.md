@@ -137,4 +137,4 @@ and the model provider:
   service) so it can be versioned and audited independently of app releases.
 
 The current design is a deliberate, documented trade-off for speed of
-delivery — not a recommendation for production.
+delivery.
